@@ -957,6 +957,23 @@
 
     .toast.success { border-color: rgba(34, 197, 94, 0.4); color: #86efac; }
     .toast.success i { color: #22c55e; }
+    .toast.error { border-color: rgba(239, 68, 68, 0.45); color: #fca5a5; }
+    .toast.error i { color: #ef4444; }
+
+    .app-loading {
+      position: fixed;
+      inset: 0;
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(12, 14, 20, 0.85);
+      backdrop-filter: blur(4px);
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .app-loading.hidden { display: none; }
 
     @keyframes toastIn {
       from { opacity: 0; transform: translateX(12px); }
@@ -1132,6 +1149,7 @@
   </style>
 </head>
 <body>
+  <div id="appLoading" class="app-loading">Chargement des prospects…</div>
   <div class="app">
     <header class="header">
       <div class="brand">
@@ -1354,11 +1372,17 @@
     }
   </style>
 
-  <script>
-    (function () {
-      "use strict";
+  <script type="module">
+    import {
+      fetchProspects,
+      insertProspect,
+      updateProspect,
+      deleteProspectById,
+      migrateFromLocalStorage
+    } from './lib/prospects.js';
 
-      var STORAGE_KEY = "se_prospection_crm_v1";
+    (async function () {
+      "use strict";
 
       var SECTORS = [
         "Restaurant",
@@ -1393,30 +1417,14 @@
         return STATUSES[0];
       }
 
-      function loadProspects() {
-        try {
-          var raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return [];
-          var data = JSON.parse(raw);
-          return Array.isArray(data) ? data.map(function (p) {
-            if (!Array.isArray(p.callNotes)) p.callNotes = [];
-            return p;
-          }) : [];
-        } catch (e) {
-          return [];
-        }
-      }
-
-      function saveProspects(list) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-      }
-
-      function uid() {
-        return "p_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
+      function handleDbError(e, fallbackMsg) {
+        console.error(e);
+        toast((fallbackMsg || "Erreur base de données") + ": " + (e.message || String(e)), "error");
       }
 
       var state = {
-        prospects: loadProspects(),
+        prospects: [],
+        loading: true,
         view: "cards",
         sortBy: "dateDesc",
         filterStatus: "",
@@ -1935,8 +1943,10 @@
 
       function toast(msg, type) {
         var div = document.createElement("div");
-        div.className = "toast " + (type || "success");
-        div.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + escapeHtml(msg);
+        var t = type || "success";
+        div.className = "toast " + t;
+        var icon = t === "error" ? "fa-circle-exclamation" : "fa-circle-check";
+        div.innerHTML = '<i class="fa-solid ' + icon + '"></i> ' + escapeHtml(msg);
         els.toasts.appendChild(div);
         setTimeout(function () {
           div.style.opacity = "0";
@@ -1973,7 +1983,7 @@
         }).join("");
       }
 
-      function addCallNoteFromUI() {
+      async function addCallNoteFromUI() {
         var text = els.newCallNote.value.trim();
         if (!text) {
           toast("Écrivez une note avant d\u2019ajouter.");
@@ -1985,11 +1995,17 @@
           if (idx === -1) return;
           if (!Array.isArray(state.prospects[idx].callNotes)) state.prospects[idx].callNotes = [];
           state.prospects[idx].callNotes.push(entry);
-          saveProspects(state.prospects);
-          els.newCallNote.value = "";
-          renderCallNotesInModal();
-          render();
-          toast("Note ajout\u00e9e \u2713");
+          try {
+            var updated = await updateProspect(state.editingId, state.prospects[idx]);
+            state.prospects[idx] = updated;
+            els.newCallNote.value = "";
+            renderCallNotesInModal();
+            render();
+            toast("Note ajout\u00e9e \u2713");
+          } catch (e) {
+            state.prospects[idx].callNotes.pop();
+            handleDbError(e, "Impossible d\u2019ajouter la note");
+          }
         } else {
           state.pendingCallNotes.push(entry);
           els.newCallNote.value = "";
@@ -1998,21 +2014,29 @@
         }
       }
 
-      function removeCallNoteById(noteId) {
+      async function removeCallNoteById(noteId) {
         if (!noteId) return;
         if (state.editingId) {
           var idx = state.prospects.findIndex(function (x) { return x.id === state.editingId; });
           if (idx === -1) return;
           var arr = state.prospects[idx].callNotes || [];
+          var prev = arr.slice();
           state.prospects[idx].callNotes = arr.filter(function (n) { return n.id !== noteId; });
-          saveProspects(state.prospects);
-          renderCallNotesInModal();
-          render();
+          try {
+            var updated = await updateProspect(state.editingId, state.prospects[idx]);
+            state.prospects[idx] = updated;
+            renderCallNotesInModal();
+            render();
+            toast("Note supprim\u00e9e \u2713");
+          } catch (e) {
+            state.prospects[idx].callNotes = prev;
+            handleDbError(e, "Impossible de supprimer la note");
+          }
         } else {
           state.pendingCallNotes = state.pendingCallNotes.filter(function (n) { return n.id !== noteId; });
           renderCallNotesInModal();
+          toast("Note supprim\u00e9e \u2713");
         }
-        toast("Note supprim\u00e9e \u2713");
       }
 
       function openModal(editProspect, opts) {
@@ -2122,51 +2146,66 @@
         };
       }
 
-      function upsertProspect(data) {
+      async function upsertProspect(data) {
         var id = state.editingId;
-        if (id) {
-          var idx = state.prospects.findIndex(function (p) { return p.id === id; });
-          if (idx === -1) return;
-          var prev = state.prospects[idx];
-          state.prospects[idx] = Object.assign({}, prev, data, {
-            id: prev.id,
-            dateAdded: prev.dateAdded,
-            callNotes: Array.isArray(prev.callNotes) ? prev.callNotes : []
-          });
-          saveProspects(state.prospects);
-          toast("Fiche mise à jour ✓", "success");
-        } else {
-          var notesCopy = (state.pendingCallNotes || []).map(function (x) {
-            return { id: x.id, text: x.text, createdAt: x.createdAt };
-          });
-          var np = Object.assign({}, data, {
-            id: uid(),
-            dateAdded: new Date().toISOString(),
-            callNotes: notesCopy
-          });
-          state.pendingCallNotes = [];
-          state.prospects.unshift(np);
-          saveProspects(state.prospects);
-          toast("Prospect ajouté ✓", "success");
+        try {
+          if (id) {
+            var idx = state.prospects.findIndex(function (p) { return p.id === id; });
+            if (idx === -1) return;
+            var prev = state.prospects[idx];
+            var merged = Object.assign({}, prev, data, {
+              id: prev.id,
+              dateAdded: prev.dateAdded,
+              callNotes: Array.isArray(prev.callNotes) ? prev.callNotes : []
+            });
+            var updated = await updateProspect(id, merged);
+            state.prospects[idx] = updated;
+            toast("Fiche mise à jour ✓", "success");
+          } else {
+            var notesCopy = (state.pendingCallNotes || []).map(function (x) {
+              return { id: x.id, text: x.text, createdAt: x.createdAt };
+            });
+            var np = Object.assign({}, data, {
+              dateAdded: new Date().toISOString(),
+              callNotes: notesCopy
+            });
+            var created = await insertProspect(np);
+            state.pendingCallNotes = [];
+            state.prospects.unshift(created);
+            toast("Prospect ajouté ✓", "success");
+          }
+          closeModal();
+          render();
+        } catch (e) {
+          handleDbError(e, "Enregistrement impossible");
         }
-        closeModal();
-        render();
       }
 
-      function deleteProspect(id) {
-        state.prospects = state.prospects.filter(function (p) { return p.id !== id; });
-        saveProspects(state.prospects);
-        toast("Supprimé ✓", "success");
-        closeConfirm();
-        render();
+      async function deleteProspect(id) {
+        try {
+          await deleteProspectById(id);
+          state.prospects = state.prospects.filter(function (p) { return p.id !== id; });
+          toast("Supprimé ✓", "success");
+          closeConfirm();
+          render();
+        } catch (e) {
+          handleDbError(e, "Suppression impossible");
+        }
       }
 
-      function setStatus(id, newStatus) {
+      async function setStatus(id, newStatus) {
         var idx = state.prospects.findIndex(function (p) { return p.id === id; });
         if (idx === -1) return;
+        var prevStatus = state.prospects[idx].status;
         state.prospects[idx].status = newStatus;
-        saveProspects(state.prospects);
-        render();
+        try {
+          var updated = await updateProspect(id, state.prospects[idx]);
+          state.prospects[idx] = updated;
+          render();
+        } catch (e) {
+          state.prospects[idx].status = prevStatus;
+          handleDbError(e, "Mise à jour du statut impossible");
+        }
       }
 
       function openConfirm(p) {
@@ -2309,7 +2348,7 @@
 
       els.confirmCancel.addEventListener("click", closeConfirm);
       els.confirmDelete.addEventListener("click", function () {
-        if (state.deleteId) deleteProspect(state.deleteId);
+        if (state.deleteId) void deleteProspect(state.deleteId);
       });
 
       document.addEventListener("click", function (e) {
@@ -2333,7 +2372,7 @@
           var el = t.closest(".status-dot") || t.closest(".btn-status");
           var sid = el.getAttribute("data-id");
           var st = el.getAttribute("data-status");
-          if (sid && st) setStatus(sid, st);
+          if (sid && st) void setStatus(sid, st);
         }
       });
 
@@ -2344,13 +2383,36 @@
         }
       });
 
+      var appLoadingEl = document.getElementById("appLoading");
+
+      function hideLoading() {
+        state.loading = false;
+        if (appLoadingEl) appLoadingEl.classList.add("hidden");
+      }
+
+      async function loadData() {
+        try {
+          state.prospects = await fetchProspects();
+          var migrated = await migrateFromLocalStorage();
+          if (migrated > 0) {
+            state.prospects = await fetchProspects();
+            toast(migrated + " prospect(s) import\u00e9(s) depuis le navigateur \u2713", "success");
+          }
+        } catch (e) {
+          handleDbError(e, "Connexion Supabase impossible");
+          state.prospects = [];
+        } finally {
+          hideLoading();
+          render();
+        }
+      }
+
+      initFormControls();
       if (window.matchMedia("(min-width: 1024px)").matches) {
         els.sidebar.classList.add("open");
         state.sidebarOpen = true;
       }
-
-      initFormControls();
-      render();
+      await loadData();
     })();
   </script>
 </body>
