@@ -43,6 +43,17 @@
       min-height: 100vh; color: var(--text-muted);
     }
     .page { max-width: 960px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+    .auth-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.5rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .auth-bar strong { color: var(--text); font-weight: 600; }
+    .btn-auth-logout { padding: 0.25rem 0.55rem; font-size: 0.68rem; }
     .fiche-header {
       display: flex; flex-wrap: wrap; align-items: flex-start;
       justify-content: space-between; gap: 1rem;
@@ -195,6 +206,12 @@
   <div id="loading" class="loading-screen">Chargement de la fiche…</div>
 
   <div id="pageContent" class="page hidden">
+    <div class="auth-bar">
+      Connecté : <strong data-auth-username></strong>
+      <button type="button" class="btn btn-auth-logout" data-auth-logout title="Déconnexion">
+        <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+      </button>
+    </div>
     <header class="fiche-header">
       <div class="fiche-header-left">
         <input type="text" class="fiche-title" id="company" placeholder="Nom de l'entreprise" />

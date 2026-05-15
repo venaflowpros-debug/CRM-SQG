@@ -9,7 +9,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        prospect: resolve(__dirname, 'prospect.html')
+        prospect: resolve(__dirname, 'prospect.html'),
+        login: resolve(__dirname, 'login.html')
       }
     }
   }

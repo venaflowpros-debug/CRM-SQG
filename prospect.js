@@ -4,6 +4,7 @@ import {
   subscribeProspectsRealtime,
   rowToProspect
 } from './lib/prospects.js'
+import { requireAuth, mountAuthUI } from './lib/auth.js'
 import {
   WEEKDAYS,
   normalizeOpeningHours,
@@ -522,6 +523,8 @@ function initEvents() {
 }
 
 async function init() {
+  if (!requireAuth()) return
+  mountAuthUI()
   initEls()
   initSectorSelect()
   initStatusSelect()

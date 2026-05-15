@@ -88,6 +88,34 @@
       backdrop-filter: blur(12px);
     }
 
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+
+    .auth-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.5rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .auth-bar strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .btn-auth-logout {
+      padding: 0.2rem 0.5rem;
+      font-size: 0.68rem;
+    }
+
     .brand {
       display: flex;
       align-items: center;
@@ -1218,11 +1246,19 @@
   <div id="appLoading" class="app-loading">Chargement des prospects…</div>
   <div class="app">
     <header class="header">
-      <div class="brand">
+      <div class="header-left">
+        <div class="auth-bar">
+          Connecté : <strong data-auth-username></strong>
+          <button type="button" class="btn btn-ghost btn-auth-logout" data-auth-logout title="Déconnexion">
+            <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+          </button>
+        </div>
+        <div class="brand">
         <div class="brand-logo">SE</div>
         <div class="brand-text">
           <h1>SE Prospection</h1>
           <span>Souheil Ecom - Prospection CRM</span>
+        </div>
         </div>
       </div>
       <div class="header-counters" id="headerCounters"></div>
@@ -1502,9 +1538,13 @@
       migrateFromLocalStorage,
       subscribeProspectsRealtime
     } from './lib/prospects.js';
+    import { requireAuth, mountAuthUI, getUsername } from './lib/auth.js';
 
     (async function () {
       "use strict";
+
+      if (!requireAuth()) return;
+      mountAuthUI();
 
       var SECTORS = [
         "Restaurant",
@@ -2119,6 +2159,7 @@
                     : escapeHtml("—")) +
                 "</span>" +
                 '<span><i class="fa-solid fa-user"></i>' + escapeHtml(p.assigned) + "</span>" +
+                '<span><i class="fa-solid fa-user-plus"></i>Ajouté par ' + escapeHtml(p.addedBy || "—") + "</span>" +
                 '<span><i class="fa-solid fa-calendar"></i>' + formatDate(p.dateAdded) + " · Web: " + (p.hasWebsite === "oui" ? "Oui" : "Non") + "</span>" +
               "</div>" +
               '<div class="card-needs"><i class="fa-solid fa-list-check"></i> ' + escapeHtml(needsLabels(p.needs || [])) + "</div>" +
@@ -2159,7 +2200,7 @@
           }
           return (
             "<tr>" +
-              "<td><strong><a href=\"prospect.html?id=" + escapeHtml(p.id) + "\" style=\"color:var(--text);border-bottom:1px dotted rgba(139,92,246,0.5)\">" + escapeHtml(p.company) + "</a></strong><br><span class=\"badge " + st.badge + "\" style=\"margin-top:4px;display:inline-block\">" + st.emoji + " " + escapeHtml(st.label) + "</span></td>" +
+              "<td><strong><a href=\"prospect.html?id=" + escapeHtml(p.id) + "\" style=\"color:var(--text);border-bottom:1px dotted rgba(139,92,246,0.5)\">" + escapeHtml(p.company) + "</a></strong><br><span class=\"badge " + st.badge + "\" style=\"margin-top:4px;display:inline-block\">" + st.emoji + " " + escapeHtml(st.label) + "</span><br><span style=\"font-size:0.72rem;color:var(--text-muted)\">Ajouté par " + escapeHtml(p.addedBy || "—") + "</span></td>" +
               "<td>" + escapeHtml(p.sector) + "</td>" +
               "<td>" + escapeHtml(extractCity(p.address)) + "</td>" +
               "<td>" + rCell + "</td>" +
@@ -2453,6 +2494,7 @@
             var merged = Object.assign({}, prev, data, {
               id: prev.id,
               dateAdded: prev.dateAdded,
+              addedBy: prev.addedBy || "",
               callNotes: Array.isArray(prev.callNotes) ? prev.callNotes : [],
               contractDetails: data.contractDetails != null ? data.contractDetails : (prev.contractDetails || {})
             });
@@ -2465,7 +2507,8 @@
             });
             var np = Object.assign({}, data, {
               dateAdded: new Date().toISOString(),
-              callNotes: notesCopy
+              callNotes: notesCopy,
+              addedBy: getUsername()
             });
             var created = await insertProspect(np);
             state.pendingCallNotes = [];
@@ -2522,7 +2565,7 @@
       function exportCsv() {
         var headers = [
           "id", "company", "sector", "address", "phone", "hasWebsite",
-          "needs", "status", "notes", "reminderDate", "callNotes", "contractDetails", "dateAdded", "assigned"
+          "needs", "status", "notes", "reminderDate", "callNotes", "contractDetails", "dateAdded", "assigned", "addedBy"
         ];
         var rows = [headers.join(";")];
         state.prospects.forEach(function (p) {
@@ -2542,7 +2585,8 @@
             notesJson,
             contractJson,
             p.dateAdded,
-            p.assigned
+            p.assigned,
+            p.addedBy || ""
           ].map(function (cell) {
             var s = String(cell == null ? "" : cell);
             if (s.indexOf(";") !== -1 || s.indexOf('"') !== -1) {

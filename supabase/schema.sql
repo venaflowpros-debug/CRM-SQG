@@ -54,7 +54,34 @@ alter table public.prospects
   add column if not exists analyse text default '',
   add column if not exists instagram text default '',
   add column if not exists facebook text default '',
-  add column if not exists website_url text default '';
+  add column if not exists website_url text default '',
+  add column if not exists added_by text default '';
+
+-- Utilisateurs (login simple — mot de passe en clair côté table, usage interne)
+create table if not exists public.users (
+  id uuid primary key default gen_random_uuid(),
+  username text not null unique,
+  password text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.users enable row level security;
+
+drop policy if exists "users_anon_select" on public.users;
+create policy "users_anon_select"
+  on public.users
+  for select
+  to anon, authenticated
+  using (true);
+
+-- Comptes équipe (mot de passe commun initial : ecom2024 — à modifier en SQL si besoin)
+insert into public.users (username, password)
+values
+  ('yanis', 'ecom2024'),
+  ('souheil', 'ecom2024'),
+  ('ilies', 'ecom2024'),
+  ('aston', 'ecom2024')
+on conflict (username) do nothing;
 
 -- Realtime : activer dans Supabase → Database → Replication → prospects
 -- ou exécuter (si la table n'est pas déjà dans la publication) :
