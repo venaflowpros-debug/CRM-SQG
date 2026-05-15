@@ -1146,6 +1146,22 @@
       width: 16px;
       height: 16px;
     }
+
+    .call-date-disabled .input[type="date"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .call-date-hint {
+      display: block;
+      margin-top: 0.35rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .call-date-hint.hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -1325,9 +1341,10 @@
             <select class="select" id="status" name="status" required></select>
             <span class="error-msg">Choisissez un statut</span>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="grpReminderDate">
             <label for="reminderDate">Date de rappel</label>
             <input class="input" type="date" id="reminderDate" name="reminderDate" />
+            <span class="call-date-hint hidden" id="reminderDateHint">📵 Changez le statut pour saisir une date d'appel</span>
           </div>
           <div class="form-group">
             <label for="notes">Notes libres</label>
@@ -1474,6 +1491,8 @@
         status: document.getElementById("status"),
         notes: document.getElementById("notes"),
         reminderDate: document.getElementById("reminderDate"),
+        grpReminderDate: document.getElementById("grpReminderDate"),
+        reminderDateHint: document.getElementById("reminderDateHint"),
         newCallNote: document.getElementById("newCallNote"),
         btnAddCallNote: document.getElementById("btnAddCallNote"),
         callNotesList: document.getElementById("callNotesList"),
@@ -1529,11 +1548,53 @@
         });
       }
 
+      function normalizeStatusKey(status) {
+        return String(status || "")
+          .toLowerCase()
+          .trim()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[\s-]+/g, "_");
+      }
+
+      function isNonContactStatus(status) {
+        var s = normalizeStatusKey(status);
+        if (!s) return true;
+        return (
+          s === "non_contacte" ||
+          s === "non_contact" ||
+          s === "non_appele" ||
+          s === "non_appelle" ||
+          s.indexOf("non_contact") === 0 ||
+          s.indexOf("non_appele") === 0 ||
+          s.indexOf("non_appel") === 0
+        );
+      }
+
+      function syncCallDateFieldState() {
+        if (!els.reminderDate || !els.grpReminderDate) return;
+        var blocked = isNonContactStatus(els.status.value);
+        els.reminderDate.disabled = blocked;
+        if (blocked) {
+          els.reminderDate.value = "";
+          els.grpReminderDate.classList.add("call-date-disabled");
+          if (els.reminderDateHint) els.reminderDateHint.classList.remove("hidden");
+        } else {
+          els.grpReminderDate.classList.remove("call-date-disabled");
+          if (els.reminderDateHint) els.reminderDateHint.classList.add("hidden");
+        }
+      }
+
       function initFormControls() {
         fillSelectStatus(els.filterStatus, true);
         fillSelectStatus(els.status, false);
         fillSectorSelect();
         fillNeedsChecks();
+        if (!els.status.dataset.callDateBound) {
+          els.status.dataset.callDateBound = "1";
+          els.status.addEventListener("change", syncCallDateFieldState);
+        }
+        syncCallDateFieldState();
       }
 
       function getStats(prospects) {
@@ -2077,6 +2138,7 @@
 
         els.newCallNote.value = "";
         renderCallNotesInModal();
+        syncCallDateFieldState();
 
         els.modalOverlay.classList.add("show");
         els.modalOverlay.setAttribute("aria-hidden", "false");
@@ -2142,7 +2204,7 @@
           needs: needs,
           status: els.status.value,
           notes: els.notes.value.trim(),
-          reminderDate: els.reminderDate.value.trim()
+          reminderDate: isNonContactStatus(els.status.value) ? "" : els.reminderDate.value.trim()
         };
       }
 
