@@ -1499,7 +1499,8 @@
       insertProspect,
       updateProspect,
       deleteProspectById,
-      migrateFromLocalStorage
+      migrateFromLocalStorage,
+      subscribeProspectsRealtime
     } from './lib/prospects.js';
 
     (async function () {
@@ -2122,6 +2123,7 @@
               "</div>" +
               '<div class="card-needs"><i class="fa-solid fa-list-check"></i> ' + escapeHtml(needsLabels(p.needs || [])) + "</div>" +
               '<div class="card-actions">' +
+                '<a class="btn-xs" href="prospect.html?id=' + escapeHtml(p.id) + '"><i class="fa-solid fa-file-lines"></i> Fiche</a>' +
                 '<a class="btn-xs btn-call" href="tel:' + escapeHtml(tel) + '"><i class="fa-solid fa-phone"></i> Appeler</a>' +
                 '<button type="button" class="btn-xs btn-edit" data-id="' + escapeHtml(p.id) + '"><i class="fa-solid fa-pen"></i></button>' +
                 '<button type="button" class="btn-xs btn-del" data-id="' + escapeHtml(p.id) + '"><i class="fa-solid fa-trash"></i></button>' +
@@ -2157,7 +2159,7 @@
           }
           return (
             "<tr>" +
-              "<td><strong>" + escapeHtml(p.company) + "</strong><br><span class=\"badge " + st.badge + "\" style=\"margin-top:4px;display:inline-block\">" + st.emoji + " " + escapeHtml(st.label) + "</span></td>" +
+              "<td><strong><a href=\"prospect.html?id=" + escapeHtml(p.id) + "\" style=\"color:var(--text);border-bottom:1px dotted rgba(139,92,246,0.5)\">" + escapeHtml(p.company) + "</a></strong><br><span class=\"badge " + st.badge + "\" style=\"margin-top:4px;display:inline-block\">" + st.emoji + " " + escapeHtml(st.label) + "</span></td>" +
               "<td>" + escapeHtml(p.sector) + "</td>" +
               "<td>" + escapeHtml(extractCity(p.address)) + "</td>" +
               "<td>" + rCell + "</td>" +
@@ -2709,6 +2711,20 @@
           render();
         }
       }
+
+      async function reloadProspectsQuiet() {
+        try {
+          state.prospects = await fetchProspects();
+          render();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      subscribeProspectsRealtime();
+      window.addEventListener("prospects-updated", function () {
+        void reloadProspectsQuiet();
+      });
 
       initFormControls();
       if (window.matchMedia("(min-width: 1024px)").matches) {

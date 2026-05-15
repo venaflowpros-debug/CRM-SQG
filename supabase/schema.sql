@@ -1,5 +1,5 @@
 -- Table prospects (CRM Souheil Ecom)
--- Exécuter dans l'éditeur SQL Supabase
+-- Exécuter dans l'éditeur SQL Supabase (nouvelle installation)
 
 create extension if not exists "pgcrypto";
 
@@ -18,11 +18,15 @@ create table if not exists public.prospects (
   date_added timestamptz not null default now(),
   assigned text default '',
   contract_details jsonb default '{}'::jsonb,
+  opening_hours jsonb default '{}'::jsonb,
+  script text default '',
+  attentes text default '',
+  analyse text default '',
+  instagram text default '',
+  facebook text default '',
+  website_url text default '',
   created_at timestamptz not null default now()
 );
-
--- Si la table existe déjà :
--- alter table public.prospects add column if not exists contract_details jsonb default '{}'::jsonb;
 
 create index if not exists prospects_status_idx on public.prospects (status);
 create index if not exists prospects_reminder_date_idx on public.prospects (reminder_date);
@@ -37,3 +41,21 @@ create policy "prospects_anon_all"
   to anon, authenticated
   using (true)
   with check (true);
+
+-- =============================================================================
+-- MIGRATIONS SAFE (bases existantes — ALTER uniquement, aucune perte de données)
+-- =============================================================================
+
+alter table public.prospects
+  add column if not exists contract_details jsonb default '{}'::jsonb,
+  add column if not exists opening_hours jsonb default '{}'::jsonb,
+  add column if not exists script text default '',
+  add column if not exists attentes text default '',
+  add column if not exists analyse text default '',
+  add column if not exists instagram text default '',
+  add column if not exists facebook text default '',
+  add column if not exists website_url text default '';
+
+-- Realtime : activer dans Supabase → Database → Replication → prospects
+-- ou exécuter (si la table n'est pas déjà dans la publication) :
+-- alter publication supabase_realtime add table public.prospects;

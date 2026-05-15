@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fiche prospect — SE Prospection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    :root {
+      --bg-deep: #0c0e14;
+      --bg-panel: #12151f;
+      --bg-card: #181c28;
+      --bg-elevated: #1e2333;
+      --border: rgba(139, 92, 246, 0.18);
+      --text: #e8eaf0;
+      --text-muted: #8b92a8;
+      --accent: #8b5cf6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea {
+      font: inherit; color: inherit; border: none; background: none;
+    }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .loading-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; color: var(--text-muted);
+    }
+    .page { max-width: 960px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+    .fiche-header {
+      display: flex; flex-wrap: wrap; align-items: flex-start;
+      justify-content: space-between; gap: 1rem;
+      margin-bottom: 1.25rem; padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .fiche-header-left { flex: 1; min-width: 200px; }
+    .fiche-title {
+      font-size: 1.5rem; font-weight: 700; width: 100%;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.5rem 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .header-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.25rem 0.55rem; border-radius: 6px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-nc { background: rgba(239,68,68,0.2); color: #f87171; }
+    .badge-aa { background: rgba(234,179,8,0.2); color: #facc15; }
+    .badge-rp { background: rgba(34,197,94,0.2); color: #4ade80; }
+    .badge-rn { background: rgba(100,116,139,0.35); color: #94a3b8; }
+    .badge-rdv { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .status-click { cursor: pointer; }
+    .status-select {
+      position: absolute; opacity: 0; width: 1px; height: 1px;
+      pointer-events: none;
+    }
+    .badge-contract {
+      background: rgba(34,197,94,0.18); color: #4ade80;
+      border: 1px solid rgba(34,197,94,0.4);
+    }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 0.9rem; border-radius: var(--radius-sm);
+      font-size: 0.82rem; font-weight: 600;
+      border: 1px solid var(--border); background: var(--bg-elevated);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn-primary {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border: none; color: #fff;
+    }
+    .btn-call { color: #4ade80; border-color: rgba(34,197,94,0.4); }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 {
+      font-size: 0.95rem; font-weight: 700; margin-bottom: 0.85rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.5rem;
+    }
+    .card-contract {
+      border-left: 4px solid var(--success);
+      background: rgba(34, 197, 94, 0.05);
+    }
+    .card-contract h2 { color: #4ade80; }
+    .form-grid {
+      display: grid; gap: 0.75rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 560px) {
+      .form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    }
+    .field label {
+      display: block; font-size: 0.72rem; color: var(--text-muted);
+      margin-bottom: 0.3rem; font-weight: 500;
+    }
+    .input, .select, textarea.input {
+      width: 100%; padding: 0.55rem 0.7rem;
+      border-radius: var(--radius-sm); background: var(--bg-elevated);
+      border: 1px solid var(--border); font-size: 0.88rem;
+    }
+    textarea.input { min-height: 88px; resize: vertical; }
+    .radio-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .radio-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
+    .open-badge {
+      display: inline-flex; padding: 0.35rem 0.65rem;
+      border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+    }
+    .open-badge--open {
+      background: rgba(34,197,94,0.2); color: #4ade80;
+      animation: pulse-green 2s ease infinite;
+    }
+    .open-badge--closed {
+      background: rgba(239,68,68,0.2); color: #f87171;
+      animation: pulse-red 2s ease infinite;
+    }
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+    }
+    .opening-hours-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+    @media (min-width: 900px) {
+      .opening-hours-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.5rem;
+      }
+      .oh-day { flex-direction: column; align-items: stretch !important; }
+      .oh-label { text-align: center; }
+    }
+    .oh-day {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+      padding: 0.5rem; background: var(--bg-elevated);
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+    }
+    .oh-label { font-size: 0.78rem; font-weight: 600; min-width: 4.5rem; }
+    .oh-closed-lab { font-size: 0.72rem; display: flex; align-items: center; gap: 0.25rem; }
+    .oh-time { width: auto; flex: 1; min-width: 5rem; }
+    .oh-sep { color: var(--text-muted); font-size: 0.75rem; }
+    .call-note-item {
+      display: flex; justify-content: space-between; gap: 0.5rem;
+      padding: 0.55rem; background: var(--bg-elevated);
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      margin-bottom: 0.4rem; font-size: 0.82rem;
+    }
+    .note-meta { color: var(--text-muted); font-size: 0.72rem; }
+    .btn-icon-sm {
+      padding: 0.25rem 0.45rem; border-radius: 6px;
+      border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .social-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .social-links a.disabled { opacity: 0.4; pointer-events: none; }
+    .muted { color: var(--text-muted); font-size: 0.82rem; }
+    .toasts {
+      position: fixed; bottom: 1rem; right: 1rem; z-index: 200;
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .toast {
+      padding: 0.65rem 1rem; border-radius: var(--radius-sm);
+      background: var(--bg-elevated); border: 1px solid rgba(34,197,94,0.4);
+      color: #86efac; font-size: 0.85rem; font-weight: 500;
+      opacity: 0; transform: translateX(12px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .toast.show { opacity: 1; transform: translateX(0); }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading-screen">Chargement de la fiche…</div>
+
+  <div id="pageContent" class="page hidden">
+    <header class="fiche-header">
+      <div class="fiche-header-left">
+        <input type="text" class="fiche-title" id="company" placeholder="Nom de l'entreprise" />
+        <div class="header-badges">
+          <span class="badge status-click" id="statusBadge" title="Cliquer pour changer">🔴 Non contacté</span>
+          <select class="status-select" id="statusSelect" aria-label="Statut"></select>
+          <span class="badge badge-contract hidden" id="contractHeaderBadge">✅ Contrat détaillé</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="index.html" class="btn">← Retour</a>
+        <a class="btn btn-call" id="btnCall" href="#"><i class="fa-solid fa-phone"></i> Appeler</a>
+        <button type="button" class="btn btn-primary" id="btnSaveAll"><i class="fa-solid fa-floppy-disk"></i> Sauvegarder</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Infos générales <button type="button" class="btn" data-save-section>💾</button></h2>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label for="sector">Secteur</label>
+          <select class="select" id="sector"></select>
+        </div>
+        <div class="field">
+          <label for="assigned">Commercial assigné</label>
+          <input class="input" id="assigned" />
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="address">Adresse</label>
+          <input class="input" id="address" />
+        </div>
+        <div class="field">
+          <label for="phone">Téléphone</label>
+          <input class="input" id="phone" inputmode="tel" />
+        </div>
+        <div class="field">
+          <label>Site web existant ?</label>
+          <div class="radio-row">
+            <label class="radio-item"><input type="radio" name="hasWebsite" value="oui" /> Oui</label>
+            <label class="radio-item"><input type="radio" name="hasWebsite" value="non" checked /> Non</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="reminderDate">Date de rappel</label>
+          <input class="input" type="date" id="reminderDate" />
+        </div>
+        <div class="field">
+          <label>Date d'ajout</label>
+          <p class="muted" id="dateAddedDisplay">—</p>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="notes">Notes libres</label>
+          <textarea class="input" id="notes" rows="3"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>⏰ Heures d'ouverture <span id="openNowBadge" class="open-badge open-badge--closed">🔴 Fermé</span>
+        <button type="button" class="btn" data-save-section>💾</button>
+      </h2>
+      <div id="openingHoursGrid" class="opening-hours-grid"></div>
+    </section>
+
+    <section class="card card-contract">
+      <h2>📋 Détails du contrat <button type="button" class="btn" data-save-section>💾</button></h2>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label for="contractPrice">💰 Prix proposé</label>
+          <input class="input" type="number" id="contractPrice" min="0" step="1" placeholder="1500" />
+        </div>
+        <div class="field">
+          <label for="contractDelivery">🚚 Livraison</label>
+          <select class="select" id="contractDelivery">
+            <option value="">—</option>
+            <option value="incluse">Incluse</option>
+            <option value="non_incluse">Non incluse</option>
+            <option value="a_definir">À définir</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="contractMockup">🎨 Maquette</label>
+          <select class="select" id="contractMockup">
+            <option value="">—</option>
+            <option value="oui_incluse">Oui incluse</option>
+            <option value="non">Non</option>
+            <option value="a_prevoir">À prévoir</option>
+            <option value="deja_fournie">Déjà fournie</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="contractDeadline">⏱️ Délai de réalisation</label>
+          <input class="input" id="contractDeadline" placeholder="3 semaines, 1 mois…" />
+        </div>
+        <div class="field">
+          <label for="contractRdvDatetime">📅 Date du RDV en vrai</label>
+          <input class="input" type="datetime-local" id="contractRdvDatetime" />
+        </div>
+        <div class="field">
+          <label for="contractRdvFormat">📍 Lieu / Format RDV</label>
+          <select class="select" id="contractRdvFormat">
+            <option value="">—</option>
+            <option value="visio">Visio</option>
+            <option value="presentiel">Présentiel</option>
+            <option value="telephone">Téléphone</option>
+            <option value="a_definir">À définir</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="contractNotes">📝 Notes contrat</label>
+          <textarea class="input" id="contractNotes" rows="3"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>🎯 Script de démarchage <button type="button" class="btn" data-save-section>💾</button></h2>
+      <textarea class="input" id="script" rows="6" placeholder="Ex: Bonjour, je suis [prénom] de Souheil Ecom..."></textarea>
+      <button type="button" class="btn" id="btnCopyScript" style="margin-top:0.5rem">📋 Copier le script</button>
+    </section>
+
+    <section class="card">
+      <h2>💡 Attentes &amp; Analyse <button type="button" class="btn" data-save-section>💾</button></h2>
+      <div class="field" style="margin-bottom:0.75rem">
+        <label for="attentes">Ce que le prospect recherche</label>
+        <textarea class="input" id="attentes" rows="4"></textarea>
+      </div>
+      <div class="field">
+        <label for="analyse">Analyse interne</label>
+        <textarea class="input" id="analyse" rows="4" placeholder="Points forts, faiblesses, opportunités…"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>📞 Historique des appels <button type="button" class="btn" data-save-section>💾</button></h2>
+      <div id="callNotesList"></div>
+      <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+        <textarea class="input" id="newCallNote" rows="2" placeholder="Nouvelle note d'appel…" style="flex:1;min-width:200px"></textarea>
+        <button type="button" class="btn btn-primary" id="btnAddCall">Ajouter un appel</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>🌐 Réseaux sociaux &amp; Web <button type="button" class="btn" data-save-section>💾</button></h2>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label for="instagram">Instagram</label>
+          <input class="input" id="instagram" placeholder="@compte ou URL" />
+        </div>
+        <div class="field">
+          <label for="facebook">Facebook</label>
+          <input class="input" id="facebook" placeholder="Page ou URL" />
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="websiteUrl">Site web (URL)</label>
+          <input class="input" id="websiteUrl" placeholder="https://..." />
+        </div>
+      </div>
+      <div class="social-links">
+        <a class="btn" id="linkInstagram" target="_blank" rel="noopener">Instagram ↗</a>
+        <a class="btn" id="linkFacebook" target="_blank" rel="noopener">Facebook ↗</a>
+        <a class="btn" id="linkWebsite" target="_blank" rel="noopener">Site web ↗</a>
+      </div>
+    </section>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script type="module" src="/prospect.js"></script>
+</body>
+</html>
