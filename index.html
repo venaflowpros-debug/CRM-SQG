@@ -1162,6 +1162,56 @@
     .call-date-hint.hidden {
       display: none;
     }
+
+    .section-contract {
+      display: none;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      margin: 0;
+      padding: 0 1rem;
+      border-left: 4px solid #22c55e;
+      background: rgba(34, 197, 94, 0.05);
+      border-radius: var(--radius-sm);
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+    }
+
+    .section-contract.visible {
+      display: block;
+      max-height: 2400px;
+      opacity: 1;
+      margin: 0 0 1rem;
+      padding: 1rem;
+    }
+
+    .section-contract h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #4ade80;
+      margin-bottom: 0.85rem;
+    }
+
+    .card-contract-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.4rem;
+      margin-right: 0.35rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(34, 197, 94, 0.18);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      cursor: pointer;
+      transition: background var(--transition), transform var(--transition);
+    }
+
+    .card-contract-badge:hover {
+      background: rgba(34, 197, 94, 0.28);
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body>
@@ -1346,6 +1396,60 @@
             <input class="input" type="date" id="reminderDate" name="reminderDate" />
             <span class="call-date-hint hidden" id="reminderDateHint">📵 Changez le statut pour saisir une date d'appel</span>
           </div>
+          <section class="section-contract" id="sectionContract" aria-hidden="true">
+            <h3>📋 Détails du contrat</h3>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label for="contractPrice">💰 Prix proposé</label>
+                <input class="input" type="number" id="contractPrice" min="0" step="1" placeholder="1500" />
+              </div>
+              <div class="form-group">
+                <label for="contractDelivery">🚚 Livraison</label>
+                <select class="select" id="contractDelivery">
+                  <option value="">— Choisir —</option>
+                  <option value="incluse">Incluse</option>
+                  <option value="non_incluse">Non incluse</option>
+                  <option value="a_definir">À définir</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label for="contractMockup">🎨 Maquette</label>
+                <select class="select" id="contractMockup">
+                  <option value="">— Choisir —</option>
+                  <option value="oui_incluse">Oui incluse</option>
+                  <option value="non">Non</option>
+                  <option value="a_prevoir">À prévoir</option>
+                  <option value="deja_fournie">Déjà fournie</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="contractDeadline">⏱️ Délai de réalisation</label>
+                <input class="input" type="text" id="contractDeadline" maxlength="120" placeholder="3 semaines, 1 mois…" />
+              </div>
+            </div>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label for="contractRdvDatetime">📅 Date du RDV en vrai</label>
+                <input class="input" type="datetime-local" id="contractRdvDatetime" />
+              </div>
+              <div class="form-group">
+                <label for="contractRdvFormat">📍 Lieu / Format RDV</label>
+                <select class="select" id="contractRdvFormat">
+                  <option value="">— Choisir —</option>
+                  <option value="visio">Visio</option>
+                  <option value="presentiel">Présentiel</option>
+                  <option value="telephone">Téléphone</option>
+                  <option value="a_definir">À définir</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="contractNotes">📝 Notes contrat</label>
+              <textarea class="input" id="contractNotes" rows="3" maxlength="5000" placeholder="Détails supplémentaires…"></textarea>
+            </div>
+          </section>
           <div class="form-group">
             <label for="notes">Notes libres</label>
             <textarea class="input" id="notes" name="notes" maxlength="5000" placeholder="Compte-rendu d'appel, objections..."></textarea>
@@ -1453,7 +1557,8 @@
         deleteId: null,
         sidebarOpen: false,
         pendingCallNotes: [],
-        modalScrollToNotes: false
+        modalScrollToNotes: false,
+        modalScrollToContract: false
       };
 
       var els = {
@@ -1497,6 +1602,14 @@
         btnAddCallNote: document.getElementById("btnAddCallNote"),
         callNotesList: document.getElementById("callNotesList"),
         sectionCallNotes: document.getElementById("sectionCallNotes"),
+        sectionContract: document.getElementById("sectionContract"),
+        contractPrice: document.getElementById("contractPrice"),
+        contractDelivery: document.getElementById("contractDelivery"),
+        contractMockup: document.getElementById("contractMockup"),
+        contractDeadline: document.getElementById("contractDeadline"),
+        contractRdvDatetime: document.getElementById("contractRdvDatetime"),
+        contractRdvFormat: document.getElementById("contractRdvFormat"),
+        contractNotes: document.getElementById("contractNotes"),
         needsChecks: document.getElementById("needsChecks"),
         btnCancelForm: document.getElementById("btnCancelForm"),
         btnSaveForm: document.getElementById("btnSaveForm"),
@@ -1585,6 +1698,101 @@
         }
       }
 
+      function isPositiveResponseStatus(status) {
+        var s = normalizeStatusKey(status);
+        return (
+          s === "reponse_positive" ||
+          s === "reponse_positif" ||
+          s === "interesse" ||
+          s === "interessee" ||
+          s === "interet" ||
+          s.indexOf("reponse_positive") === 0 ||
+          s.indexOf("reponse_positif") === 0 ||
+          s.indexOf("interesse") === 0 ||
+          s.indexOf("interet") === 0
+        );
+      }
+
+      function clearContractForm() {
+        if (!els.contractPrice) return;
+        els.contractPrice.value = "";
+        els.contractDelivery.value = "";
+        els.contractMockup.value = "";
+        els.contractDeadline.value = "";
+        els.contractRdvDatetime.value = "";
+        els.contractRdvFormat.value = "";
+        els.contractNotes.value = "";
+      }
+
+      function isoToDatetimeLocal(iso) {
+        if (!iso) return "";
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) {
+          var s = String(iso).trim();
+          return s.length >= 16 ? s.slice(0, 16) : s;
+        }
+        return (
+          d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) +
+          "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes())
+        );
+      }
+
+      function fillContractFormFromDetails(cd) {
+        cd = cd && typeof cd === "object" ? cd : {};
+        els.contractPrice.value = cd.price != null && cd.price !== "" ? String(cd.price) : "";
+        els.contractDelivery.value = cd.delivery || "";
+        els.contractMockup.value = cd.mockup || "";
+        els.contractDeadline.value = cd.deadline || "";
+        els.contractRdvDatetime.value = isoToDatetimeLocal(cd.rdvDatetime || "");
+        els.contractRdvFormat.value = cd.rdvFormat || "";
+        els.contractNotes.value = cd.notes || "";
+      }
+
+      function getContractDetailsFromForm() {
+        var priceVal = els.contractPrice.value.trim();
+        return {
+          price: priceVal ? Number(priceVal) : null,
+          delivery: els.contractDelivery.value,
+          mockup: els.contractMockup.value,
+          deadline: els.contractDeadline.value.trim(),
+          rdvDatetime: els.contractRdvDatetime.value,
+          rdvFormat: els.contractRdvFormat.value,
+          notes: els.contractNotes.value.trim()
+        };
+      }
+
+      function hasContractDetailsData(cd) {
+        if (!cd || typeof cd !== "object") return false;
+        return !!(
+          (cd.price != null && cd.price !== "") ||
+          cd.delivery ||
+          cd.mockup ||
+          cd.deadline ||
+          cd.rdvDatetime ||
+          cd.rdvFormat ||
+          (cd.notes && String(cd.notes).trim())
+        );
+      }
+
+      function formatContractPrice(cd) {
+        if (!cd || cd.price == null || cd.price === "") return "—";
+        var n = Number(cd.price);
+        if (isNaN(n)) return escapeHtml(String(cd.price));
+        return escapeHtml(n.toLocaleString("fr-FR") + " €");
+      }
+
+      function syncContractSectionVisibility() {
+        if (!els.sectionContract) return;
+        var show = isPositiveResponseStatus(els.status.value);
+        els.sectionContract.classList.toggle("visible", show);
+        els.sectionContract.setAttribute("aria-hidden", show ? "false" : "true");
+      }
+
+      function onStatusFieldChange() {
+        syncCallDateFieldState();
+        syncContractSectionVisibility();
+      }
+
       function initFormControls() {
         fillSelectStatus(els.filterStatus, true);
         fillSelectStatus(els.status, false);
@@ -1592,9 +1800,9 @@
         fillNeedsChecks();
         if (!els.status.dataset.callDateBound) {
           els.status.dataset.callDateBound = "1";
-          els.status.addEventListener("change", syncCallDateFieldState);
+          els.status.addEventListener("change", onStatusFieldChange);
         }
-        syncCallDateFieldState();
+        onStatusFieldChange();
       }
 
       function getStats(prospects) {
@@ -1889,6 +2097,9 @@
           var notesBadgeHtml = nCount > 0
             ? '<button type="button" class="card-notes-badge btn-notes-badge" data-id="' + escapeHtml(p.id) + '">\ud83d\udcac ' + nCount + " note" + (nCount > 1 ? "s" : "") + "</button>"
             : "";
+          var contractBadgeHtml = hasContractDetailsData(p.contractDetails)
+            ? '<button type="button" class="card-contract-badge btn-contract-badge" data-id="' + escapeHtml(p.id) + '">\u2705 Contrat d\u00e9taill\u00e9</button>'
+            : "";
           return (
             '<article class="prospect-card ' + st.card + '" data-id="' + escapeHtml(p.id) + '">' +
               '<div class="card-top">' +
@@ -1896,6 +2107,7 @@
                 '<span class="badge ' + st.badge + '">' + st.emoji + " " + escapeHtml(st.label) + "</span>" +
               "</div>" +
               renderCardReminderBlock(p) +
+              contractBadgeHtml +
               notesBadgeHtml +
               '<div class="card-meta">' +
                 '<span><i class="fa-solid fa-briefcase"></i>' + escapeHtml(p.sector) + "</span>" +
@@ -1956,6 +2168,9 @@
                   : escapeHtml("—")) +
               "</span></td>" +
               "<td>" + escapeHtml(p.assigned) + "</td>" +
+              "<td>" + (p.contractDetails && p.contractDetails.price != null && p.contractDetails.price !== ""
+                ? "\ud83d\udcb0 " + formatContractPrice(p.contractDetails)
+                : "—") + "</td>" +
               "<td>" + formatDate(p.dateAdded) + "</td>" +
               "<td><div class=\"table-actions\">" +
                 STATUSES.map(function (s) {
@@ -1970,7 +2185,7 @@
         }).join("");
         els.tableContainer.innerHTML =
           "<table><thead><tr>" +
-          "<th>Entreprise / Statut</th><th>Secteur</th><th>Ville</th><th>Rappel</th><th>Tél.</th><th>Assigné</th><th>Date</th><th>Actions</th>" +
+          "<th>Entreprise / Statut</th><th>Secteur</th><th>Ville</th><th>Rappel</th><th>Tél.</th><th>Assigné</th><th>Contrat</th><th>Date</th><th>Actions</th>" +
           "</tr></thead><tbody>" + rows + "</tbody></table>";
       }
 
@@ -2103,6 +2318,7 @@
       function openModal(editProspect, opts) {
         opts = opts || {};
         state.modalScrollToNotes = !!opts.scrollToNotes;
+        state.modalScrollToContract = !!opts.scrollToContract;
         state.editingId = editProspect ? editProspect.id : null;
         els.prospectForm.querySelectorAll(".form-group").forEach(function (g) { g.classList.remove("invalid"); });
         els.grpWebsite.classList.remove("invalid");
@@ -2126,6 +2342,7 @@
           els.needsChecks.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
             cb.checked = needs.indexOf(cb.value) !== -1;
           });
+          fillContractFormFromDetails(editProspect.contractDetails);
         } else {
           els.modalTitle.textContent = "Nouveau prospect";
           els.editId.value = "";
@@ -2133,12 +2350,13 @@
           els.status.value = "non_contacte";
           els.reminderDate.value = "";
           state.pendingCallNotes = [];
+          clearContractForm();
           els.needsChecks.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
         }
 
         els.newCallNote.value = "";
         renderCallNotesInModal();
-        syncCallDateFieldState();
+        onStatusFieldChange();
 
         els.modalOverlay.classList.add("show");
         els.modalOverlay.setAttribute("aria-hidden", "false");
@@ -2149,6 +2367,12 @@
             els.sectionCallNotes.scrollIntoView({ behavior: "smooth", block: "nearest" });
             els.newCallNote.focus();
             state.modalScrollToNotes = false;
+          }, 320);
+        } else if (state.modalScrollToContract) {
+          setTimeout(function () {
+            els.sectionContract.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            if (els.contractPrice) els.contractPrice.focus();
+            state.modalScrollToContract = false;
           }, 320);
         } else {
           setTimeout(function () { els.company.focus(); }, 200);
@@ -2194,7 +2418,7 @@
           needs.push(cb.value);
         });
         var hw = els.prospectForm.querySelector('input[name="hasWebsite"]:checked');
-        return {
+        var payload = {
           company: els.company.value.trim(),
           sector: els.sector.value,
           assigned: els.assigned.value.trim(),
@@ -2206,6 +2430,15 @@
           notes: els.notes.value.trim(),
           reminderDate: isNonContactStatus(els.status.value) ? "" : els.reminderDate.value.trim()
         };
+        if (isPositiveResponseStatus(els.status.value)) {
+          payload.contractDetails = getContractDetailsFromForm();
+        } else if (state.editingId) {
+          var prevP = state.prospects.find(function (p) { return p.id === state.editingId; });
+          payload.contractDetails = prevP && prevP.contractDetails ? prevP.contractDetails : {};
+        } else {
+          payload.contractDetails = {};
+        }
+        return payload;
       }
 
       async function upsertProspect(data) {
@@ -2218,7 +2451,8 @@
             var merged = Object.assign({}, prev, data, {
               id: prev.id,
               dateAdded: prev.dateAdded,
-              callNotes: Array.isArray(prev.callNotes) ? prev.callNotes : []
+              callNotes: Array.isArray(prev.callNotes) ? prev.callNotes : [],
+              contractDetails: data.contractDetails != null ? data.contractDetails : (prev.contractDetails || {})
             });
             var updated = await updateProspect(id, merged);
             state.prospects[idx] = updated;
@@ -2286,11 +2520,12 @@
       function exportCsv() {
         var headers = [
           "id", "company", "sector", "address", "phone", "hasWebsite",
-          "needs", "status", "notes", "reminderDate", "callNotes", "dateAdded", "assigned"
+          "needs", "status", "notes", "reminderDate", "callNotes", "contractDetails", "dateAdded", "assigned"
         ];
         var rows = [headers.join(";")];
         state.prospects.forEach(function (p) {
           var notesJson = JSON.stringify(p.callNotes || []);
+          var contractJson = JSON.stringify(p.contractDetails || {});
           var line = [
             p.id,
             p.company,
@@ -2303,6 +2538,7 @@
             (p.notes || "").replace(/\r?\n/g, " "),
             p.reminderDate || "",
             notesJson,
+            contractJson,
             p.dateAdded,
             p.assigned
           ].map(function (cell) {
@@ -2424,6 +2660,11 @@
           var nid = t.closest(".btn-notes-badge").getAttribute("data-id");
           var np = state.prospects.find(function (x) { return x.id === nid; });
           if (np) openModal(np, { scrollToNotes: true });
+        }
+        if (t.closest && t.closest(".btn-contract-badge")) {
+          var cid = t.closest(".btn-contract-badge").getAttribute("data-id");
+          var cp = state.prospects.find(function (x) { return x.id === cid; });
+          if (cp) openModal(cp, { scrollToContract: true });
         }
         if (t.closest && t.closest(".btn-del")) {
           var id2 = t.closest(".btn-del").getAttribute("data-id");

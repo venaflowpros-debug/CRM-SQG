@@ -17,8 +17,12 @@ create table if not exists public.prospects (
   call_notes jsonb default '[]'::jsonb,
   date_added timestamptz not null default now(),
   assigned text default '',
+  contract_details jsonb default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+
+-- Si la table existe déjà :
+-- alter table public.prospects add column if not exists contract_details jsonb default '{}'::jsonb;
 
 create index if not exists prospects_status_idx on public.prospects (status);
 create index if not exists prospects_reminder_date_idx on public.prospects (reminder_date);
